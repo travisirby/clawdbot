@@ -89,6 +89,39 @@ Key behaviors:
 Use isolated jobs for noisy, frequent, or "background chores" that shouldn't spam
 your main chat history.
 
+#### Isolated vs Direct testing
+When testing, remember isolated cron runs do not see your ongoing chat thread.
+
+- Context: isolated runs start from a blank conversation. They can still read `MEMORY.md` and `memory/*.md` in the workspace.
+- Delivery: to post to a channel (e.g., Slack `#test`), set explicit delivery on the job.
+  - Prefer explicit targets so cron can auto-deliver the agent’s output without relying on tools.
+  - Example (Slack):
+    ```bash
+    clawdbot cron add \
+      --name "Cron test to #test" \
+      --at "10m" \
+      --session isolated \
+      --message "Send: hello from cron isolated." \
+      --deliver \
+      --channel slack \
+      --to "channel:C1234567890"
+    ```
+  - Example (Discord):
+    ```bash
+    clawdbot cron add \
+      --name "Cron test to #test" \
+      --at "10m" \
+      --session isolated \
+      --message "Send: hello from cron isolated." \
+      --deliver \
+      --channel discord \
+      --to "channel:123456789012345678"
+    ```
+  - If you omit `--to`, cron attempts to use the main session’s last route. For predictable tests, prefer explicit `--to`.
+  - If the model uses the Messaging tool to send during the run, cron detects the same destination and avoids double-delivery.
+
+Tip: If you need full main-session context, use a main cron job with `payload.kind = "systemEvent"` (CLI: `--session main --system-event ...`) so it runs on the next heartbeat with your normal prompt and history.
+
 ### Payload shapes (what runs)
 Two payload kinds are supported:
 - `systemEvent`: main-session only, routed through the heartbeat prompt.

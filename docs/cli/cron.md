@@ -27,3 +27,35 @@ Disable delivery for an isolated job:
 ```bash
 clawdbot cron edit <job-id> --no-deliver
 ```
+
+## Quick tests
+
+Send a one-shot test to Slack `#test` (isolated session; explicit delivery target):
+
+```bash
+clawdbot cron add \
+  --name "Cron test (Slack)" \
+  --at "5m" \
+  --session isolated \
+  --message "Send: hello from cron isolated." \
+  --deliver \
+  --channel slack \
+  --to "channel:C1234567890"
+```
+
+Send a one-shot test to Discord `#test`:
+
+```bash
+clawdbot cron add \
+  --name "Cron test (Discord)" \
+  --at "5m" \
+  --session isolated \
+  --message "Send: hello from cron isolated." \
+  --deliver \
+  --channel discord \
+  --to "channel:123456789012345678"
+```
+
+Notes:
+- Isolated runs start with no conversation history; they can still read `MEMORY.md` and `memory/*.md`.
+- If you omit `--to`, cron may fall back to the main session’s last route; for predictable tests, set `--to` explicitly.

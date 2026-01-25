@@ -226,11 +226,15 @@ export async function runPreparedReply(
     isNewSession,
     prefixedBodyBase,
   });
+  const MAX_THREAD_STARTER_LENGTH = 2000; // ~500 tokens
   const threadStarterBody = ctx.ThreadStarterBody?.trim();
-  const threadStarterNote =
-    isNewSession && threadStarterBody
-      ? `[Thread starter - for context]\n${threadStarterBody}`
-      : undefined;
+  const threadStarterTrimmed =
+    threadStarterBody && threadStarterBody.length > MAX_THREAD_STARTER_LENGTH
+      ? threadStarterBody.slice(0, MAX_THREAD_STARTER_LENGTH) + "... [truncated]"
+      : threadStarterBody;
+  const threadStarterNote = threadStarterTrimmed
+    ? `[Thread starter - for context]\n${threadStarterTrimmed}`
+    : undefined;
   const skillResult = await ensureSkillSnapshot({
     sessionEntry,
     sessionStore,

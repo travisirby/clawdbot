@@ -1247,6 +1247,7 @@ Reaction notification modes:
 Thread session isolation:
 - `channels.slack.thread.historyScope` controls whether thread history is per-thread (`thread`, default) or shared across the channel (`channel`).
 - `channels.slack.thread.inheritParent` controls whether new thread sessions inherit the parent channel transcript (default: false).
+- Thread starter messages are always included in thread replies regardless of session freshness to maintain conversation context.
 
 Slack action groups (gate `slack` tool actions):
 | Action group | Default | Notes |

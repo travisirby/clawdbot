@@ -47,6 +47,7 @@ Docs: https://docs.clawd.bot
 
 ### Fixes
 - Web UI: fix config/debug layout overflow, scrolling, and code block sizing. (#1715) Thanks @saipreetham589.
+- Threads: always include thread starter context in replies regardless of session freshness to maintain conversation awareness.
 - Web UI: show Stop button during active runs, swap back to New session when idle. (#1664) Thanks @ndbroadbent.
 - Web UI: clear stale disconnect banners on reconnect; allow form saves with unsupported schema paths but block missing schema. (#1707) Thanks @Glucksberg.
 - Web UI: hide internal `message_id` hints in chat bubbles.
