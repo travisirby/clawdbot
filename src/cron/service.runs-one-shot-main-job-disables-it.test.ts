@@ -121,6 +121,107 @@ describe("CronService", () => {
     await store.cleanup();
   });
 
+  it("disables one-shot job when heartbeat is skipped (no infinite retry)", async () => {
+    const store = await makeStorePath();
+    const enqueueSystemEvent = vi.fn();
+    const requestHeartbeatNow = vi.fn();
+
+    let now = 0;
+    const nowMs = () => {
+      now += 10;
+      return now;
+    };
+
+    const runHeartbeatOnce = vi.fn(async () => ({
+      status: "skipped" as const,
+      reason: "disabled",
+    }));
+
+    const cron = new CronService({
+      storePath: store.storePath,
+      cronEnabled: true,
+      log: noopLogger,
+      nowMs,
+      enqueueSystemEvent,
+      requestHeartbeatNow,
+      runHeartbeatOnce,
+      runIsolatedAgentJob: vi.fn(async () => ({ status: "ok" })),
+    });
+
+    await cron.start();
+    const job = await cron.add({
+      name: "one-shot skipped",
+      enabled: true,
+      schedule: { kind: "at", atMs: 1 },
+      sessionTarget: "main",
+      wakeMode: "now",
+      payload: { kind: "systemEvent", text: "hello" },
+    });
+
+    await cron.run(job.id, "force");
+
+    // Job should be disabled to prevent infinite retry loop
+    const jobs = await cron.list({ includeDisabled: true });
+    const updated = jobs.find((j) => j.id === job.id);
+    expect(updated?.enabled).toBe(false);
+    expect(updated?.state.lastStatus).toBe("skipped");
+    expect(updated?.state.nextRunAtMs).toBeUndefined();
+
+    cron.stop();
+    await store.cleanup();
+  });
+
+  it("keeps deleteAfterRun job when status is skipped (not deleted, but disabled)", async () => {
+    const store = await makeStorePath();
+    const enqueueSystemEvent = vi.fn();
+    const requestHeartbeatNow = vi.fn();
+
+    let now = 0;
+    const nowMs = () => {
+      now += 10;
+      return now;
+    };
+
+    const runHeartbeatOnce = vi.fn(async () => ({
+      status: "skipped" as const,
+      reason: "disabled",
+    }));
+
+    const cron = new CronService({
+      storePath: store.storePath,
+      cronEnabled: true,
+      log: noopLogger,
+      nowMs,
+      enqueueSystemEvent,
+      requestHeartbeatNow,
+      runHeartbeatOnce,
+      runIsolatedAgentJob: vi.fn(async () => ({ status: "ok" })),
+    });
+
+    await cron.start();
+    const job = await cron.add({
+      name: "one-shot deleteAfterRun skipped",
+      enabled: true,
+      deleteAfterRun: true,
+      schedule: { kind: "at", atMs: 1 },
+      sessionTarget: "main",
+      wakeMode: "now",
+      payload: { kind: "systemEvent", text: "hello" },
+    });
+
+    await cron.run(job.id, "force");
+
+    // Job should NOT be deleted (status wasn't ok), but should be disabled
+    const jobs = await cron.list({ includeDisabled: true });
+    const updated = jobs.find((j) => j.id === job.id);
+    expect(updated).toBeDefined();
+    expect(updated?.enabled).toBe(false);
+    expect(updated?.state.lastStatus).toBe("skipped");
+
+    cron.stop();
+    await store.cleanup();
+  });
+
   it("wakeMode now waits for heartbeat completion when available", async () => {
     const store = await makeStorePath();
     const enqueueSystemEvent = vi.fn();

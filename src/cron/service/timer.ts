@@ -83,8 +83,10 @@ export async function executeJob(
       job.schedule.kind === "at" && status === "ok" && job.deleteAfterRun === true;
 
     if (!shouldDelete) {
-      if (job.schedule.kind === "at" && status === "ok") {
-        // One-shot job completed successfully; disable it.
+      if (job.schedule.kind === "at") {
+        // One-shot job completed; disable it regardless of status.
+        // Disabling prevents infinite retry loops for skipped/error completions
+        // (e.g., when heartbeats are disabled and atMs is now in the past).
         job.enabled = false;
         job.state.nextRunAtMs = undefined;
       } else if (job.enabled) {
