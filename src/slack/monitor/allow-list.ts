@@ -71,3 +71,31 @@ export function resolveSlackUserAllowed(params: {
     name: params.userName,
   });
 }
+
+export function shouldNotifySlackReaction(params: {
+  mode: "off" | "own" | "all" | "allowlist";
+  botUserId?: string;
+  messageAuthorId?: string;
+  reactorId?: string;
+  reactorName?: string;
+  allowlist?: Array<string | number>;
+}): boolean {
+  const { mode, botUserId, messageAuthorId, reactorId, reactorName, allowlist } = params;
+  if (mode === "off") return false;
+  if (mode === "all") return true;
+  if (mode === "own") {
+    // Only notify if the reaction is on a message authored by the bot
+    return Boolean(botUserId && messageAuthorId && messageAuthorId === botUserId);
+  }
+  if (mode === "allowlist") {
+    // Only notify if the reactor is in the allowlist (empty list = no one)
+    const normalizedList = normalizeAllowListLower(allowlist);
+    if (normalizedList.length === 0) return false;
+    return allowListMatches({
+      allowList: normalizedList,
+      id: reactorId,
+      name: reactorName,
+    });
+  }
+  return false;
+}

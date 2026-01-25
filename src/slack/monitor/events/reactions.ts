@@ -3,6 +3,7 @@ import type { SlackEventMiddlewareArgs } from "@slack/bolt";
 import { danger } from "../../../globals.js";
 import { enqueueSystemEvent } from "../../../infra/system-events.js";
 
+import { shouldNotifySlackReaction } from "../allow-list.js";
 import { resolveSlackChannelLabel } from "../channel-config.js";
 import type { SlackMonitorContext } from "../context.js";
 import type { SlackMessageEvent, SlackReactionEvent } from "../types.js";
@@ -22,6 +23,19 @@ export function registerSlackReactionEvents(params: { ctx: SlackMonitorContext }
           channelId: item.channel,
           channelName: channelInfo?.name,
           channelType,
+        })
+      ) {
+        return;
+      }
+
+      // Check reaction notification mode before doing expensive user lookups
+      if (
+        !shouldNotifySlackReaction({
+          mode: ctx.reactionMode,
+          botUserId: ctx.botUserId,
+          messageAuthorId: event.item_user,
+          reactorId: event.user,
+          allowlist: ctx.reactionAllowlist,
         })
       ) {
         return;
