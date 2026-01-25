@@ -3,7 +3,10 @@ import type { SlackEventMiddlewareArgs } from "@slack/bolt";
 import { danger } from "../../../globals.js";
 import { enqueueSystemEvent } from "../../../infra/system-events.js";
 
-import { resolveSlackChannelLabel } from "../channel-config.js";
+import {
+  resolveSlackChannelLabel,
+  shouldEmitSlackReactionNotification,
+} from "../channel-config.js";
 import type { SlackMonitorContext } from "../context.js";
 import type { SlackMessageEvent, SlackReactionEvent } from "../types.js";
 
@@ -27,12 +30,24 @@ export function registerSlackReactionEvents(params: { ctx: SlackMonitorContext }
         return;
       }
 
+      const actorInfo = event.user ? await ctx.resolveUserName(event.user) : undefined;
+      const actorLabel = actorInfo?.name ?? event.user;
+
+      // Check if we should emit this reaction notification based on mode
+      const shouldNotify = shouldEmitSlackReactionNotification({
+        mode: ctx.reactionMode,
+        botId: ctx.botUserId,
+        messageAuthorId: event.item_user,
+        userId: event.user,
+        userName: actorInfo?.name,
+        allowlist: ctx.reactionAllowlist,
+      });
+      if (!shouldNotify) return;
+
       const channelLabel = resolveSlackChannelLabel({
         channelId: item.channel,
         channelName: channelInfo?.name,
       });
-      const actorInfo = event.user ? await ctx.resolveUserName(event.user) : undefined;
-      const actorLabel = actorInfo?.name ?? event.user;
       const emojiLabel = event.reaction ?? "emoji";
       const authorInfo = event.item_user ? await ctx.resolveUserName(event.item_user) : undefined;
       const authorLabel = authorInfo?.name ?? event.item_user;
