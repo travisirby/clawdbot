@@ -104,10 +104,11 @@ describe("monitorSlackProvider tool results", () => {
       ParentSessionKey?: string;
     };
     expect(ctx.SessionKey).toBe("agent:main:main:thread:123");
-    expect(ctx.ParentSessionKey).toBeUndefined();
+    // inheritParent defaults to true, so thread replies inherit parent context
+    expect(ctx.ParentSessionKey).toBe("agent:main:main");
   });
 
-  it("keeps thread parent inheritance opt-in", async () => {
+  it("allows thread parent inheritance to be disabled", async () => {
     replyMock.mockResolvedValue({ text: "thread reply" });
 
     slackTestState.config = {
@@ -116,7 +117,7 @@ describe("monitorSlackProvider tool results", () => {
         slack: {
           dm: { enabled: true, policy: "open", allowFrom: ["*"] },
           channels: { C1: { allow: true, requireMention: false } },
-          thread: { inheritParent: true },
+          thread: { inheritParent: false },
         },
       },
     };
@@ -154,7 +155,8 @@ describe("monitorSlackProvider tool results", () => {
       ParentSessionKey?: string;
     };
     expect(ctx.SessionKey).toBe("agent:main:slack:channel:c1:thread:111.222");
-    expect(ctx.ParentSessionKey).toBe("agent:main:slack:channel:c1");
+    // inheritParent explicitly disabled, so no parent context
+    expect(ctx.ParentSessionKey).toBeUndefined();
   });
 
   it("injects starter context for thread replies", async () => {
@@ -217,7 +219,8 @@ describe("monitorSlackProvider tool results", () => {
       ThreadLabel?: string;
     };
     expect(ctx.SessionKey).toBe("agent:main:slack:channel:c1:thread:111.222");
-    expect(ctx.ParentSessionKey).toBeUndefined();
+    // inheritParent defaults to true, so thread replies inherit parent context
+    expect(ctx.ParentSessionKey).toBe("agent:main:slack:channel:c1");
     expect(ctx.ThreadStarterBody).toContain("starter message");
     expect(ctx.ThreadLabel).toContain("Slack thread #general");
   });
@@ -281,7 +284,8 @@ describe("monitorSlackProvider tool results", () => {
       ParentSessionKey?: string;
     };
     expect(ctx.SessionKey).toBe("agent:support:slack:channel:c1:thread:111.222");
-    expect(ctx.ParentSessionKey).toBeUndefined();
+    // inheritParent defaults to true, parent session also scoped to the routed agent
+    expect(ctx.ParentSessionKey).toBe("agent:support:slack:channel:c1");
   });
 
   it("keeps replies in channel root when message is not threaded (replyToMode off)", async () => {

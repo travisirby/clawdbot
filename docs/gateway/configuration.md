@@ -1208,7 +1208,7 @@ Slack runs in Socket Mode and requires both a bot token and app token:
       replyToMode: "off",           // off | first | all
       thread: {
         historyScope: "thread",     // thread | channel
-        inheritParent: false
+        inheritParent: true         // default: true
       },
       actions: {
         reactions: true,
@@ -1246,7 +1246,7 @@ Reaction notification modes:
 
 Thread session isolation:
 - `channels.slack.thread.historyScope` controls whether thread history is per-thread (`thread`, default) or shared across the channel (`channel`).
-- `channels.slack.thread.inheritParent` controls whether new thread sessions inherit the parent channel transcript (default: false).
+- `channels.slack.thread.inheritParent` controls whether new thread sessions inherit the parent channel transcript (default: true).
 
 Slack action groups (gate `slack` tool actions):
 | Action group | Default | Notes |
