@@ -122,3 +122,80 @@ export async function resolveSlackThreadStarter(params: {
     return null;
   }
 }
+
+export type SlackThreadReply = {
+  text: string;
+  userId?: string;
+  ts?: string;
+  botId?: string;
+};
+
+const THREAD_HISTORY_CACHE = new Map<string, SlackThreadReply[]>();
+const MAX_THREAD_HISTORY_CACHE = 500;
+
+/**
+ * Fetches intermediate thread replies from the Slack API (excluding root and current message).
+ * Results are cached per thread to avoid redundant API calls.
+ */
+export async function resolveSlackThreadHistory(params: {
+  channelId: string;
+  threadTs: string;
+  client: SlackWebClient;
+  limit?: number;
+  currentTs?: string;
+}): Promise<SlackThreadReply[]> {
+  const cacheKey = `${params.channelId}:${params.threadTs}`;
+  const cached = THREAD_HISTORY_CACHE.get(cacheKey);
+  if (cached) return cached;
+  try {
+    const response = (await params.client.conversations.replies({
+      channel: params.channelId,
+      ts: params.threadTs,
+      limit: params.limit ?? 50,
+      inclusive: true,
+    })) as {
+      messages?: Array<{
+        text?: string;
+        user?: string;
+        ts?: string;
+        bot_id?: string;
+      }>;
+    };
+    const messages = response?.messages ?? [];
+    // Filter out the root message and the current message
+    const replies: SlackThreadReply[] = messages
+      .filter((m) => m.ts !== params.threadTs && m.ts !== params.currentTs)
+      .map((m) => ({
+        text: (m.text ?? "").trim(),
+        userId: m.user,
+        ts: m.ts,
+        botId: m.bot_id,
+      }))
+      .filter((r) => r.text.length > 0);
+
+    // Evict oldest entries when cache exceeds limit
+    if (THREAD_HISTORY_CACHE.size >= MAX_THREAD_HISTORY_CACHE) {
+      const keysToDelete = THREAD_HISTORY_CACHE.size - MAX_THREAD_HISTORY_CACHE + 1;
+      const iterator = THREAD_HISTORY_CACHE.keys();
+      for (let i = 0; i < keysToDelete; i++) {
+        const key = iterator.next().value;
+        if (key !== undefined) THREAD_HISTORY_CACHE.delete(key);
+      }
+    }
+
+    THREAD_HISTORY_CACHE.set(cacheKey, replies);
+    return replies;
+  } catch {
+    return [];
+  }
+}
+
+/** @internal Test-only: reset the thread history cache. */
+export function __resetSlackThreadHistoryCacheForTest(): void {
+  THREAD_HISTORY_CACHE.clear();
+}
+
+/** @internal Test-only: reset the thread starter cache. */
+export function __resetSlackThreadStarterCacheForTest(): void {
+  THREAD_STARTER_CACHE.clear();
+}

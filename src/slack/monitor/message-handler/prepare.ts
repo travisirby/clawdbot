@@ -10,6 +10,7 @@ import {
 import {
   buildPendingHistoryContextFromMap,
   recordPendingHistoryEntryIfEnabled,
+  type HistoryEntry,
 } from "../../../auto-reply/reply/history.js";
 import { finalizeInboundContext } from "../../../auto-reply/reply/inbound-context.js";
 import {
@@ -44,7 +45,11 @@ import { resolveSlackAllowListMatch, resolveSlackUserAllowed } from "../allow-li
 import { resolveSlackEffectiveAllowFrom } from "../auth.js";
 import { resolveSlackChannelConfig } from "../channel-config.js";
 import { normalizeSlackChannelType, type SlackMonitorContext } from "../context.js";
-import { resolveSlackMedia, resolveSlackThreadStarter } from "../media.js";
+import {
+  resolveSlackMedia,
+  resolveSlackThreadHistory,
+  resolveSlackThreadStarter,
+} from "../media.js";
 
 import type { PreparedSlackMessage } from "./types.js";
 
@@ -415,28 +420,6 @@ export async function prepareSlackMessage(params: {
     envelope: envelopeOptions,
   });
 
-  let combinedBody = body;
-  if (isRoomish && ctx.historyLimit > 0) {
-    combinedBody = buildPendingHistoryContextFromMap({
-      historyMap: ctx.channelHistories,
-      historyKey,
-      limit: ctx.historyLimit,
-      currentMessage: combinedBody,
-      formatEntry: (entry) =>
-        formatInboundEnvelope({
-          channel: "Slack",
-          from: roomLabel,
-          timestamp: entry.timestamp,
-          body: `${entry.body}${
-            entry.messageId ? ` [id:${entry.messageId} channel:${message.channel}]` : ""
-          }`,
-          chatType: "channel",
-          senderLabel: entry.sender,
-          envelope: envelopeOptions,
-        }),
-    });
-  }
-
   const slackTo = isDirectMessage ? `user:${message.user}` : `channel:${message.channel}`;
 
   const channelDescription = [channelInfo?.topic, channelInfo?.purpose]
@@ -491,8 +474,73 @@ export async function prepareSlackMessage(params: {
     }
   }
 
+  // Fetch intermediate thread replies from the Slack API and merge with in-memory history.
+  // This must happen before buildPendingHistoryContextFromMap so the merged entries are picked up.
+  if (isThreadReply && threadTs && isRoomish && ctx.historyLimit > 0) {
+    const threadReplies = await resolveSlackThreadHistory({
+      channelId: message.channel,
+      threadTs,
+      client: ctx.app.client,
+      currentTs: message.ts,
+    });
+    if (threadReplies.length > 0) {
+      const apiEntries: HistoryEntry[] = [];
+      for (const reply of threadReplies) {
+        const isBotReply = reply.userId === ctx.botUserId;
+        let senderLabel: string;
+        if (isBotReply) {
+          senderLabel = "You (bot)";
+        } else if (reply.userId) {
+          const user = await ctx.resolveUserName(reply.userId);
+          senderLabel = user?.name ?? reply.userId;
+        } else {
+          senderLabel = "Unknown";
+        }
+        apiEntries.push({
+          sender: senderLabel,
+          body: reply.text,
+          timestamp: reply.ts ? Math.round(Number(reply.ts) * 1000) : undefined,
+          messageId: reply.ts,
+        });
+      }
+
+      // Merge with existing in-memory history, dedup by messageId
+      const existingEntries = ctx.channelHistories.get(historyKey) ?? [];
+      const seenIds = new Set(apiEntries.map((e) => e.messageId).filter(Boolean));
+      const dedupedExisting = existingEntries.filter(
+        (e) => !e.messageId || !seenIds.has(e.messageId),
+      );
+      const merged = [...apiEntries, ...dedupedExisting];
+      // Truncate to historyLimit
+      const trimmed = merged.length > ctx.historyLimit ? merged.slice(-ctx.historyLimit) : merged;
+      ctx.channelHistories.set(historyKey, trimmed);
+    }
+  }
+
   // Use thread starter media if current message has none
   const effectiveMedia = media ?? threadStarterMedia;
+
+  let combinedBody = body;
+  if (isRoomish && ctx.historyLimit > 0) {
+    combinedBody = buildPendingHistoryContextFromMap({
+      historyMap: ctx.channelHistories,
+      historyKey,
+      limit: ctx.historyLimit,
+      currentMessage: combinedBody,
+      formatEntry: (entry) =>
+        formatInboundEnvelope({
+          channel: "Slack",
+          from: roomLabel,
+          timestamp: entry.timestamp,
+          body: `${entry.body}${
+            entry.messageId ? ` [id:${entry.messageId} channel:${message.channel}]` : ""
+          }`,
+          chatType: "channel",
+          senderLabel: entry.sender,
+          envelope: envelopeOptions,
+        }),
+    });
+  }
 
   const ctxPayload = finalizeInboundContext({
     Body: combinedBody,

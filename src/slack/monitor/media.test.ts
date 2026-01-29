@@ -276,3 +276,182 @@ describe("resolveSlackMedia", () => {
     expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("resolveSlackThreadHistory", () => {
+  beforeEach(() => {
+    mockFetch = vi.fn();
+    globalThis.fetch = mockFetch as typeof fetch;
+  });
+
+  afterEach(async () => {
+    globalThis.fetch = originalFetch;
+    vi.resetModules();
+  });
+
+  function makeClient(
+    messages: Array<{ text?: string; user?: string; ts?: string; bot_id?: string }>,
+  ) {
+    return {
+      conversations: {
+        replies: vi.fn().mockResolvedValue({ messages }),
+      },
+    } as unknown as import("@slack/web-api").WebClient;
+  }
+
+  it("fetches and caches thread replies, excluding the root message", async () => {
+    const { resolveSlackThreadHistory, __resetSlackThreadHistoryCacheForTest } =
+      await import("./media.js");
+    __resetSlackThreadHistoryCacheForTest();
+
+    const client = makeClient([
+      { text: "root message", user: "U1", ts: "1000.0" },
+      { text: "reply one", user: "U2", ts: "1001.0" },
+      { text: "reply two", user: "U3", ts: "1002.0" },
+    ]);
+
+    const result = await resolveSlackThreadHistory({
+      channelId: "C123",
+      threadTs: "1000.0",
+      client,
+    });
+
+    expect(result).toHaveLength(2);
+    expect(result[0].text).toBe("reply one");
+    expect(result[0].userId).toBe("U2");
+    expect(result[1].text).toBe("reply two");
+    expect(result[1].userId).toBe("U3");
+
+    // Second call should be cached (single API call total)
+    const result2 = await resolveSlackThreadHistory({
+      channelId: "C123",
+      threadTs: "1000.0",
+      client,
+    });
+    expect(result2).toEqual(result);
+    expect(client.conversations.replies).toHaveBeenCalledTimes(1);
+  });
+
+  it("excludes the current message from results", async () => {
+    const { resolveSlackThreadHistory, __resetSlackThreadHistoryCacheForTest } =
+      await import("./media.js");
+    __resetSlackThreadHistoryCacheForTest();
+
+    const client = makeClient([
+      { text: "root", user: "U1", ts: "1000.0" },
+      { text: "intermediate", user: "U2", ts: "1001.0" },
+      { text: "current", user: "U3", ts: "1002.0" },
+    ]);
+
+    const result = await resolveSlackThreadHistory({
+      channelId: "C456",
+      threadTs: "1000.0",
+      client,
+      currentTs: "1002.0",
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0].text).toBe("intermediate");
+  });
+
+  it("returns empty array on API error", async () => {
+    const { resolveSlackThreadHistory, __resetSlackThreadHistoryCacheForTest } =
+      await import("./media.js");
+    __resetSlackThreadHistoryCacheForTest();
+
+    const client = {
+      conversations: {
+        replies: vi.fn().mockRejectedValue(new Error("rate limited")),
+      },
+    } as unknown as import("@slack/web-api").WebClient;
+
+    const result = await resolveSlackThreadHistory({
+      channelId: "C789",
+      threadTs: "1000.0",
+      client,
+    });
+
+    expect(result).toEqual([]);
+  });
+
+  it("filters out replies with empty text", async () => {
+    const { resolveSlackThreadHistory, __resetSlackThreadHistoryCacheForTest } =
+      await import("./media.js");
+    __resetSlackThreadHistoryCacheForTest();
+
+    const client = makeClient([
+      { text: "root", user: "U1", ts: "1000.0" },
+      { text: "", user: "U2", ts: "1001.0" },
+      { text: "valid reply", user: "U3", ts: "1002.0" },
+    ]);
+
+    const result = await resolveSlackThreadHistory({
+      channelId: "Cempty",
+      threadTs: "1000.0",
+      client,
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0].text).toBe("valid reply");
+  });
+
+  it("evicts oldest cache entries when exceeding 500", async () => {
+    const { resolveSlackThreadHistory, __resetSlackThreadHistoryCacheForTest } =
+      await import("./media.js");
+    __resetSlackThreadHistoryCacheForTest();
+
+    // Fill cache to 500
+    for (let i = 0; i < 500; i++) {
+      const client = makeClient([
+        { text: "root", user: "U1", ts: `${i}.0` },
+        { text: `reply-${i}`, user: "U2", ts: `${i}.1` },
+      ]);
+      await resolveSlackThreadHistory({
+        channelId: `C-evict-${i}`,
+        threadTs: `${i}.0`,
+        client,
+      });
+    }
+
+    // Add one more — should evict the first entry
+    const client = makeClient([
+      { text: "root", user: "U1", ts: "new.0" },
+      { text: "new-reply", user: "U2", ts: "new.1" },
+    ]);
+    await resolveSlackThreadHistory({
+      channelId: "C-evict-new",
+      threadTs: "new.0",
+      client,
+    });
+
+    // The new entry should be cached (no new API call)
+    const clientCheck = makeClient([]);
+    const result = await resolveSlackThreadHistory({
+      channelId: "C-evict-new",
+      threadTs: "new.0",
+      client: clientCheck,
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0].text).toBe("new-reply");
+    expect(clientCheck.conversations.replies).not.toHaveBeenCalled();
+  });
+
+  it("preserves botId in replies", async () => {
+    const { resolveSlackThreadHistory, __resetSlackThreadHistoryCacheForTest } =
+      await import("./media.js");
+    __resetSlackThreadHistoryCacheForTest();
+
+    const client = makeClient([
+      { text: "root", user: "U1", ts: "1000.0" },
+      { text: "bot reply", user: "UBOT", ts: "1001.0", bot_id: "B123" },
+    ]);
+
+    const result = await resolveSlackThreadHistory({
+      channelId: "Cbot",
+      threadTs: "1000.0",
+      client,
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0].botId).toBe("B123");
+  });
+});
