@@ -1,4 +1,5 @@
 import { Mock, vi } from "vitest";
+import { clearSlackThreadCaches } from "./monitor/media.js";
 
 type SlackHandler = (args: unknown) => Promise<void>;
 
@@ -68,6 +69,7 @@ export function resetSlackTestState(config: Record<string, unknown> = defaultSla
     code: "PAIRCODE",
     created: true,
   });
+  clearSlackThreadCaches();
   getSlackHandlers()?.clear();
 }
 

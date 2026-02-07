@@ -44,7 +44,11 @@ import { resolveSlackAllowListMatch, resolveSlackUserAllowed } from "../allow-li
 import { resolveSlackEffectiveAllowFrom } from "../auth.js";
 import { resolveSlackChannelConfig } from "../channel-config.js";
 import { normalizeSlackChannelType, type SlackMonitorContext } from "../context.js";
-import { resolveSlackMedia, resolveSlackThreadStarter } from "../media.js";
+import {
+  resolveSlackMedia,
+  resolveSlackThreadReplies,
+  resolveSlackThreadStarter,
+} from "../media.js";
 
 export async function prepareSlackMessage(params: {
   ctx: SlackMonitorContext;
@@ -457,27 +461,57 @@ export async function prepareSlackMessage(params: {
   let threadStarterBody: string | undefined;
   let threadLabel: string | undefined;
   let threadStarterMedia: Awaited<ReturnType<typeof resolveSlackMedia>> = null;
+  const THREAD_CONTEXT_CHAR_BUDGET = 4000;
   if (isThreadReply && threadTs) {
-    const starter = await resolveSlackThreadStarter({
+    // Fetch full thread history (starter + all replies, excluding current message)
+    const threadReplies = await resolveSlackThreadReplies({
       channelId: message.channel,
       threadTs,
+      currentMessageTs: message.ts,
       client: ctx.app.client,
     });
-    if (starter?.text) {
-      const starterUser = starter.userId ? await ctx.resolveUserName(starter.userId) : null;
-      const starterName = starterUser?.name ?? starter.userId ?? "Unknown";
-      const starterWithId = `${starter.text}\n[slack message id: ${starter.ts ?? threadTs} channel: ${message.channel}]`;
-      threadStarterBody = formatThreadStarterEnvelope({
-        channel: "Slack",
-        author: starterName,
-        timestamp: starter.ts ? Math.round(Number(starter.ts) * 1000) : undefined,
-        body: starterWithId,
-        envelope: envelopeOptions,
-      });
-      const snippet = starter.text.replace(/\s+/g, " ").slice(0, 80);
+
+    if (threadReplies.length > 0) {
+      // Format each thread message into an envelope
+      const formattedParts: string[] = [];
+      let totalChars = 0;
+
+      for (const reply of threadReplies) {
+        const replyUser = reply.userId ? await ctx.resolveUserName(reply.userId) : null;
+        const replyName = replyUser?.name ?? reply.userId ?? "Unknown";
+        const replyWithId = `${reply.text}\n[slack message id: ${reply.ts ?? threadTs} channel: ${message.channel}]`;
+        const formatted = formatThreadStarterEnvelope({
+          channel: "Slack",
+          author: replyName,
+          timestamp: reply.ts ? Math.round(Number(reply.ts) * 1000) : undefined,
+          body: replyWithId,
+          envelope: envelopeOptions,
+        });
+
+        if (
+          totalChars + formatted.length > THREAD_CONTEXT_CHAR_BUDGET &&
+          formattedParts.length > 0
+        ) {
+          // Budget exceeded; keep the starter (first) and most recent that fit
+          break;
+        }
+        formattedParts.push(formatted);
+        totalChars += formatted.length;
+      }
+
+      threadStarterBody = formattedParts.join("\n\n");
+
+      const starterText = threadReplies[0]?.text ?? "";
+      const snippet = starterText.replace(/\s+/g, " ").slice(0, 80);
       threadLabel = `Slack thread ${roomLabel}${snippet ? `: ${snippet}` : ""}`;
+
       // If current message has no files but thread starter does, fetch starter's files
-      if (!media && starter.files && starter.files.length > 0) {
+      const starter = await resolveSlackThreadStarter({
+        channelId: message.channel,
+        threadTs,
+        client: ctx.app.client,
+      });
+      if (!media && starter?.files && starter.files.length > 0) {
         threadStarterMedia = await resolveSlackMedia({
           files: starter.files,
           token: ctx.botToken,

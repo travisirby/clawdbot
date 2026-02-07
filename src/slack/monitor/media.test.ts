@@ -298,3 +298,134 @@ describe("resolveSlackMedia", () => {
     expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("resolveSlackThreadReplies", () => {
+  afterEach(() => {
+    vi.resetModules();
+  });
+
+  function createMockClient(messages: Array<{ text?: string; user?: string; ts?: string }>) {
+    return {
+      conversations: {
+        replies: vi.fn().mockResolvedValue({ messages }),
+      },
+    } as unknown as import("@slack/web-api").WebClient;
+  }
+
+  it("returns all thread messages excluding current message", async () => {
+    const { resolveSlackThreadReplies } = await import("./media.js");
+
+    const client = createMockClient([
+      { text: "Thread starter", user: "U001", ts: "1700000000.000000" },
+      { text: "Reply 1", user: "U002", ts: "1700000001.000000" },
+      { text: "Reply 2", user: "U001", ts: "1700000002.000000" },
+    ]);
+
+    const replies = await resolveSlackThreadReplies({
+      channelId: "C123",
+      threadTs: "1700000000.000000",
+      currentMessageTs: "1700000002.000000",
+      client,
+    });
+
+    expect(replies).toHaveLength(2);
+    expect(replies[0]?.text).toBe("Thread starter");
+    expect(replies[1]?.text).toBe("Reply 1");
+  });
+
+  it("returns all messages when no currentMessageTs is provided", async () => {
+    const { resolveSlackThreadReplies } = await import("./media.js");
+
+    const client = createMockClient([
+      { text: "Starter", user: "U001", ts: "1700000000.000000" },
+      { text: "Reply", user: "U002", ts: "1700000001.000000" },
+    ]);
+
+    const replies = await resolveSlackThreadReplies({
+      channelId: "C123",
+      threadTs: "1700000000.000000",
+      client,
+    });
+
+    expect(replies).toHaveLength(2);
+  });
+
+  it("skips messages with empty text", async () => {
+    const { resolveSlackThreadReplies } = await import("./media.js");
+
+    const client = createMockClient([
+      { text: "Starter", user: "U001", ts: "1700000000.000000" },
+      { text: "", user: "U002", ts: "1700000001.000000" },
+      { text: "   ", user: "U003", ts: "1700000002.000000" },
+    ]);
+
+    const replies = await resolveSlackThreadReplies({
+      channelId: "C123",
+      threadTs: "1700000000.000000",
+      client,
+    });
+
+    expect(replies).toHaveLength(1);
+    expect(replies[0]?.text).toBe("Starter");
+  });
+
+  it("returns empty array on API error", async () => {
+    const { resolveSlackThreadReplies } = await import("./media.js");
+
+    const client = {
+      conversations: {
+        replies: vi.fn().mockRejectedValue(new Error("API error")),
+      },
+    } as unknown as import("@slack/web-api").WebClient;
+
+    const replies = await resolveSlackThreadReplies({
+      channelId: "C123",
+      threadTs: "1700000000.000000",
+      client,
+    });
+
+    expect(replies).toEqual([]);
+  });
+
+  it("uses cached results within TTL", async () => {
+    const { resolveSlackThreadReplies } = await import("./media.js");
+
+    const client = createMockClient([{ text: "Starter", user: "U001", ts: "1700000000.000000" }]);
+
+    // First call populates cache
+    await resolveSlackThreadReplies({
+      channelId: "C999",
+      threadTs: "1700000000.000000",
+      client,
+    });
+
+    // Second call should use cache
+    await resolveSlackThreadReplies({
+      channelId: "C999",
+      threadTs: "1700000000.000000",
+      client,
+    });
+
+    expect(client.conversations.replies).toHaveBeenCalledTimes(1);
+  });
+
+  it("passes custom limit to API", async () => {
+    const { resolveSlackThreadReplies } = await import("./media.js");
+
+    const client = createMockClient([]);
+
+    await resolveSlackThreadReplies({
+      channelId: "C123",
+      threadTs: "1700000000.000000",
+      client,
+      limit: 10,
+    });
+
+    expect(client.conversations.replies).toHaveBeenCalledWith({
+      channel: "C123",
+      ts: "1700000000.000000",
+      limit: 10,
+      inclusive: true,
+    });
+  });
+});

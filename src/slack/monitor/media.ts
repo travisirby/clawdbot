@@ -170,7 +170,16 @@ export type SlackThreadStarter = {
   files?: SlackFile[];
 };
 
+export type SlackThreadReply = {
+  text: string;
+  userId?: string;
+  ts?: string;
+};
+
 const THREAD_STARTER_CACHE = new Map<string, SlackThreadStarter>();
+
+const THREAD_REPLIES_CACHE = new Map<string, { replies: SlackThreadReply[]; expiresAt: number }>();
+const THREAD_REPLIES_TTL_MS = 60_000;
 
 export async function resolveSlackThreadStarter(params: {
   channelId: string;
@@ -205,4 +214,69 @@ export async function resolveSlackThreadStarter(params: {
   } catch {
     return null;
   }
+}
+
+/**
+ * Fetches the full thread history (starter + all replies) from the Slack API.
+ * Uses a short TTL cache (60s) since thread contents change frequently.
+ * Excludes the current inbound message (by `ts`) to avoid duplication.
+ */
+export async function resolveSlackThreadReplies(params: {
+  channelId: string;
+  threadTs: string;
+  currentMessageTs?: string;
+  client: SlackWebClient;
+  limit?: number;
+}): Promise<SlackThreadReply[]> {
+  const cacheKey = `${params.channelId}:${params.threadTs}`;
+  const cached = THREAD_REPLIES_CACHE.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return filterCurrentMessage(cached.replies, params.currentMessageTs);
+  }
+  // Evict expired entry
+  THREAD_REPLIES_CACHE.delete(cacheKey);
+
+  try {
+    const response = (await params.client.conversations.replies({
+      channel: params.channelId,
+      ts: params.threadTs,
+      limit: params.limit ?? 50,
+      inclusive: true,
+    })) as { messages?: Array<{ text?: string; user?: string; ts?: string }> };
+
+    const messages = response?.messages ?? [];
+    const replies: SlackThreadReply[] = [];
+    for (const msg of messages) {
+      const text = (msg.text ?? "").trim();
+      if (!text) {
+        continue;
+      }
+      replies.push({ text, userId: msg.user, ts: msg.ts });
+    }
+
+    THREAD_REPLIES_CACHE.set(cacheKey, {
+      replies,
+      expiresAt: Date.now() + THREAD_REPLIES_TTL_MS,
+    });
+
+    return filterCurrentMessage(replies, params.currentMessageTs);
+  } catch {
+    return [];
+  }
+}
+
+function filterCurrentMessage(
+  replies: SlackThreadReply[],
+  currentMessageTs?: string,
+): SlackThreadReply[] {
+  if (!currentMessageTs) {
+    return replies;
+  }
+  return replies.filter((r) => r.ts !== currentMessageTs);
+}
+
+/** Clear all thread-related caches. Useful in tests. */
+export function clearSlackThreadCaches(): void {
+  THREAD_STARTER_CACHE.clear();
+  THREAD_REPLIES_CACHE.clear();
 }
