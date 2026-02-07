@@ -7,7 +7,7 @@ import fs$1 from "node:fs/promises";
 import { execFileSync, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { createServer } from "node:http";
-import WebSocket, { WebSocketServer } from "ws";
+import WebSocket$1, { WebSocketServer } from "ws";
 import { Buffer as Buffer$1 } from "node:buffer";
 import net from "node:net";
 
@@ -135,7 +135,7 @@ async function ensureChromeExtensionRelayServer(opts) {
 	let nextExtensionId = 1;
 	const sendToExtension = async (payload) => {
 		const ws = extensionWs;
-		if (!ws || ws.readyState !== WebSocket.OPEN) throw new Error("Chrome extension not connected");
+		if (!ws || ws.readyState !== WebSocket$1.OPEN) throw new Error("Chrome extension not connected");
 		ws.send(JSON.stringify(payload));
 		return await new Promise((resolve, reject) => {
 			const timer = setTimeout(() => {
@@ -152,12 +152,12 @@ async function ensureChromeExtensionRelayServer(opts) {
 	const broadcastToCdpClients = (evt) => {
 		const msg = JSON.stringify(evt);
 		for (const ws of cdpClients) {
-			if (ws.readyState !== WebSocket.OPEN) continue;
+			if (ws.readyState !== WebSocket$1.OPEN) continue;
 			ws.send(msg);
 		}
 	};
 	const sendResponseToCdp = (ws, res) => {
-		if (ws.readyState !== WebSocket.OPEN) return;
+		if (ws.readyState !== WebSocket$1.OPEN) return;
 		ws.send(JSON.stringify(res));
 	};
 	const ensureTargetEventsForClient = (ws, mode) => {
@@ -377,7 +377,7 @@ async function ensureChromeExtensionRelayServer(opts) {
 	wssExtension.on("connection", (ws) => {
 		extensionWs = ws;
 		const ping = setInterval(() => {
-			if (ws.readyState !== WebSocket.OPEN) return;
+			if (ws.readyState !== WebSocket$1.OPEN) return;
 			ws.send(JSON.stringify({ method: "ping" }));
 		}, 5e3);
 		ws.on("message", (data) => {
@@ -674,7 +674,7 @@ async function fetchJson(url, timeoutMs = 1500, init) {
 }
 async function withCdpSocket(wsUrl, fn, opts) {
 	const headers = getHeadersWithAuth(wsUrl, opts?.headers ?? {});
-	const ws = new WebSocket(wsUrl, {
+	const ws = new WebSocket$1(wsUrl, {
 		handshakeTimeout: 5e3,
 		...Object.keys(headers).length ? { headers } : {}
 	});
@@ -1808,7 +1808,7 @@ async function getChromeWebSocketUrl(cdpUrl, timeoutMs = 500) {
 async function canOpenWebSocket(wsUrl, timeoutMs = 800) {
 	return await new Promise((resolve) => {
 		const headers = getHeadersWithAuth(wsUrl);
-		const ws = new WebSocket(wsUrl, {
+		const ws = new WebSocket$1(wsUrl, {
 			handshakeTimeout: timeoutMs,
 			...Object.keys(headers).length ? { headers } : {}
 		});

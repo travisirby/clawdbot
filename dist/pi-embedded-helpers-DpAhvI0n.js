@@ -4,7 +4,7 @@ import { A as normalizeE164, C as CONFIG_DIR, N as resolveUserPath, _ as normali
 import { O as isTruthyEnvValue, k as parseBooleanValue } from "./model-selection-em7SodZj.js";
 import { t as formatCliCommand } from "./command-format-CFzL448l.js";
 import { _ as resolveEnableState, f as loadPluginManifestRegistry, g as normalizePluginsConfig, h as MANIFEST_KEY, i as writeConfigFile, k as resolveWhatsAppAccount, m as LEGACY_MANIFEST_KEYS, t as loadConfig, v as resolveMemorySlotDecision } from "./config-Tw_khURq.js";
-import { C as DEFAULT_AI_SNAPSHOT_MAX_CHARS, D as DEFAULT_OPENCLAW_BROWSER_ENABLED, E as DEFAULT_OPENCLAW_BROWSER_COLOR, O as DEFAULT_OPENCLAW_BROWSER_PROFILE_NAME, S as DEFAULT_AI_SNAPSHOT_EFFICIENT_MAX_CHARS, T as DEFAULT_BROWSER_EVALUATE_ENABLED, a as resolveOpenClawUserDataDir, c as captureScreenshot, d as normalizeCdpWsUrl, f as snapshotAria, g as stopChromeExtensionRelayServer, h as ensureChromeExtensionRelayServer, i as launchOpenClawChrome, l as createTargetViaCdp, m as getHeadersWithAuth, n as isChromeCdpReady, o as stopOpenClawChrome, p as appendCdpPath, r as isChromeReachable, s as resolveBrowserExecutableForPlatform, v as extractErrorCode, w as DEFAULT_BROWSER_DEFAULT_PROFILE_NAME, x as DEFAULT_AI_SNAPSHOT_EFFICIENT_DEPTH, y as formatErrorMessage } from "./chrome-xcNOQZOI.js";
+import { C as DEFAULT_AI_SNAPSHOT_MAX_CHARS, D as DEFAULT_OPENCLAW_BROWSER_ENABLED, E as DEFAULT_OPENCLAW_BROWSER_COLOR, O as DEFAULT_OPENCLAW_BROWSER_PROFILE_NAME, S as DEFAULT_AI_SNAPSHOT_EFFICIENT_MAX_CHARS, T as DEFAULT_BROWSER_EVALUATE_ENABLED, a as resolveOpenClawUserDataDir, c as captureScreenshot, d as normalizeCdpWsUrl, f as snapshotAria, g as stopChromeExtensionRelayServer, h as ensureChromeExtensionRelayServer, i as launchOpenClawChrome, l as createTargetViaCdp, m as getHeadersWithAuth, n as isChromeCdpReady, o as stopOpenClawChrome, p as appendCdpPath, r as isChromeReachable, s as resolveBrowserExecutableForPlatform, v as extractErrorCode, w as DEFAULT_BROWSER_DEFAULT_PROFILE_NAME, x as DEFAULT_AI_SNAPSHOT_EFFICIENT_DEPTH, y as formatErrorMessage } from "./chrome-B3IuUad-.js";
 import { r as resolveSessionTranscriptPath, t as resolveDefaultSessionStorePath } from "./paths-O8Bl3giv.js";
 import { t as emitSessionTranscriptUpdate } from "./transcript-events-JLH5W4He.js";
 import os from "node:os";
@@ -2041,7 +2041,7 @@ function isModuleNotFoundError(err) {
 }
 async function loadPwAiModule(mode) {
 	try {
-		return await import("./pw-ai-CnBU8OzW.js");
+		return await import("./pw-ai-tNPuRNn3.js");
 	} catch (err) {
 		if (mode === "soft") return null;
 		if (isModuleNotFoundError(err)) return null;
@@ -4863,11 +4863,11 @@ function createProfileContext(opts, profile) {
 		const userDataDir = resolveOpenClawUserDataDir(profile.name);
 		const profileState = getProfileState();
 		if (await isHttpReachable(300) && !profileState.running) try {
-			await (await import("./pw-ai-CnBU8OzW.js")).closePlaywrightBrowserConnection();
+			await (await import("./pw-ai-tNPuRNn3.js")).closePlaywrightBrowserConnection();
 		} catch {}
 		if (profileState.running) await stopRunningBrowser();
 		try {
-			await (await import("./pw-ai-CnBU8OzW.js")).closePlaywrightBrowserConnection();
+			await (await import("./pw-ai-tNPuRNn3.js")).closePlaywrightBrowserConnection();
 		} catch {}
 		if (!fs.existsSync(userDataDir)) return {
 			moved: false,

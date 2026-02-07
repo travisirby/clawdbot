@@ -1,7 +1,7 @@
 import "./paths-B1kfl4h5.js";
 import "./exec-BMnoMcZW.js";
 import { t as formatCliCommand } from "./command-format-CFzL448l.js";
-import { m as getHeadersWithAuth, t as getChromeWebSocketUrl, u as formatAriaSnapshot, y as formatErrorMessage } from "./chrome-xcNOQZOI.js";
+import { m as getHeadersWithAuth, t as getChromeWebSocketUrl, u as formatAriaSnapshot, y as formatErrorMessage } from "./chrome-B3IuUad-.js";
 import path from "node:path";
 import fs from "node:fs/promises";
 import crypto from "node:crypto";

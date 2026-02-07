@@ -1,7 +1,7 @@
 import { t as __exportAll } from "./rolldown-runtime-Cbj13DAv.js";
 import { j as normalizeAccountId$1 } from "./agent-scope-BHIT6LIU.js";
 import { H as logVerbose, N as resolveUserPath, W as shouldLogVerbose, b as getActivePluginRegistry } from "./exec-BMnoMcZW.js";
-import { At as hasAlphaChannel, En as mediaKindFromMime, G as appendAssistantMessageToSessionTranscript, It as closeDispatcher, K as resolveMirroredTranscriptText, Lt as createPinnedDispatcher, Mt as resizeToJpeg, On as resolveSignalAccount, Ot as convertHeicToJpeg, Pt as saveMediaBuffer, Rt as resolvePinnedHostname, Tn as maxBytesForKind, _n as detectMime, gt as getChannelDock, jn as normalizeChannelId, jt as optimizeImageToPng, kn as getChannelPlugin, m as isMessagingToolDuplicate, on as INTERNAL_MESSAGE_CHANNEL, vn as extensionForMime, zt as resolvePinnedHostnameWithPolicy } from "./pi-embedded-helpers-CW5ROLeQ.js";
+import { At as hasAlphaChannel, En as mediaKindFromMime, G as appendAssistantMessageToSessionTranscript, It as closeDispatcher, K as resolveMirroredTranscriptText, Lt as createPinnedDispatcher, Mt as resizeToJpeg, On as resolveSignalAccount, Ot as convertHeicToJpeg, Pt as saveMediaBuffer, Rt as resolvePinnedHostname, Tn as maxBytesForKind, _n as detectMime, gt as getChannelDock, jn as normalizeChannelId, jt as optimizeImageToPng, kn as getChannelPlugin, m as isMessagingToolDuplicate, on as INTERNAL_MESSAGE_CHANNEL, vn as extensionForMime, zt as resolvePinnedHostnameWithPolicy } from "./pi-embedded-helpers-DpAhvI0n.js";
 import { t as loadConfig } from "./config-Tw_khURq.js";
 import path from "node:path";
 import fs from "node:fs/promises";

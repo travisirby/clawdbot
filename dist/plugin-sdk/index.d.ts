@@ -4360,13 +4360,13 @@ declare const ConnectParamsSchema: _sinclair_typebox0.TObject<{
   minProtocol: _sinclair_typebox0.TInteger;
   maxProtocol: _sinclair_typebox0.TInteger;
   client: _sinclair_typebox0.TObject<{
-    id: _sinclair_typebox0.TUnion<_sinclair_typebox0.TLiteral<"webchat" | "cli" | "webchat-ui" | "openclaw-control-ui" | "gateway-client" | "openclaw-macos" | "openclaw-ios" | "openclaw-android" | "node-host" | "test" | "fingerprint" | "openclaw-probe">[]>;
+    id: _sinclair_typebox0.TUnion<_sinclair_typebox0.TLiteral<"cli" | "webchat" | "webchat-ui" | "openclaw-control-ui" | "gateway-client" | "openclaw-macos" | "openclaw-ios" | "openclaw-android" | "node-host" | "test" | "fingerprint" | "openclaw-probe">[]>;
     displayName: _sinclair_typebox0.TOptional<_sinclair_typebox0.TString>;
     version: _sinclair_typebox0.TString;
     platform: _sinclair_typebox0.TString;
     deviceFamily: _sinclair_typebox0.TOptional<_sinclair_typebox0.TString>;
     modelIdentifier: _sinclair_typebox0.TOptional<_sinclair_typebox0.TString>;
-    mode: _sinclair_typebox0.TUnion<_sinclair_typebox0.TLiteral<"webchat" | "cli" | "node" | "ui" | "backend" | "test" | "probe">[]>;
+    mode: _sinclair_typebox0.TUnion<_sinclair_typebox0.TLiteral<"node" | "cli" | "webchat" | "ui" | "backend" | "test" | "probe">[]>;
     instanceId: _sinclair_typebox0.TOptional<_sinclair_typebox0.TString>;
   }>;
   caps: _sinclair_typebox0.TOptional<_sinclair_typebox0.TArray<_sinclair_typebox0.TString>>;
